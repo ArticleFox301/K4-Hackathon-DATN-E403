@@ -249,7 +249,7 @@ khớp nguyên văn với ngữ cảnh — kiểm bằng so khớp chuỗi, khô
 | Prompt + golden set | Trần Thế Ninh | `[2A202602001]` | `codebase/quiz_ai.py`, `eval/golden-set.jsonl` |
 | Build backend + eval | Trịnh Quang Anh | `[2A202601796]` | `codebase/server.py`, `eval/run_eval.py` |
 | Build flow (UI reader + quiz) | Trịnh Quang Anh | `[2A202601796]` | `codebase/app.js`, `codebase/styles.css` |
-| Giao diện Dashboard / Notebook | Nguyễn Thị Thu Trang | `[2A202601634]` | `codebase/index_v2.html` |
+| Giao diện Dashboard / Notebook | Nguyễn Thị Thu Trang | `[2A202601634]` | `codebase/index.html` |
 | Demo + validation + điều phối | Nguyễn Trung Đức | `[2A202601750]` | `validation/feedback-log.md`, slide demo |
 
 > ⚠️ **Còn thiếu mã HV của cả 4 người** — điền trước CP5.
