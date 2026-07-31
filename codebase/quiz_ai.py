@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -101,6 +103,39 @@ SYS_CHAM = (
 )
 
 
+# Lịch lùi khi bị chặn tần suất. NVIDIA NIM trả 429 mà KHÔNG kèm header
+# Retry-After, nên không có cách nào biết chính xác lúc nào được gọi lại —
+# phải tự lùi dần. Ba nhịp này đủ vượt qua đợt chặn ngắn do bấm dồn hoặc do
+# vừa chạy eval, mà tổng thời gian chờ thêm chỉ ~23 giây.
+LICH_LUI = (2.0, 6.0, 15.0)
+MA_THU_LAI = {429, 500, 502, 503, 504}
+
+
+def _mo(req, timeout: int):
+    """Gọi HTTP, tự thử lại khi bị chặn tần suất hoặc server chập chờn.
+
+    Trước đây gặp 429 là trả lỗi ngay và giao diện hiện "[Lỗi kết nối model:
+    http_429]" — người dùng không biết đó là bị giới hạn tần suất chứ không
+    phải hỏng, cũng không biết chờ bao lâu. Lúc demo trước hội đồng thì trông
+    như sản phẩm chết.
+    """
+    lan_cuoi = None
+    for i, cho in enumerate((0.0,) + LICH_LUI):
+        if cho:
+            time.sleep(cho + random.uniform(0, 0.6))   # thêm nhiễu, tránh dồn nhịp
+        try:
+            return urllib.request.urlopen(req, timeout=timeout), None
+        except urllib.error.HTTPError as e:
+            lan_cuoi = f"http_{e.code}"
+            if e.code not in MA_THU_LAI:
+                return None, lan_cuoi
+        except Exception as e:
+            lan_cuoi = type(e).__name__
+            if lan_cuoi == "TimeoutError":     # hết giờ thì thử lại cũng hết giờ
+                return None, lan_cuoi
+    return None, lan_cuoi
+
+
 def _goi(system: str, user: str, max_tokens: int = 900, timeout: int = 150) -> dict:
     """Một lời gọi LLM thật. Trả về dict đã parse, hoặc {"loi": ...}."""
     if not API_KEY:
@@ -118,13 +153,11 @@ def _goi(system: str, user: str, max_tokens: int = 900, timeout: int = 150) -> d
         headers={"Content-Type": "application/json",
                  "Authorization": "Bearer " + API_KEY},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            raw = json.load(r)["choices"][0]["message"]["content"]
-    except urllib.error.HTTPError as e:
-        return {"loi": f"http_{e.code}"}
-    except Exception as e:  # mạng chết giữa lúc demo -> vẫn phải trả lời tử tế
-        return {"loi": type(e).__name__}
+    r, loi = _mo(req, timeout)
+    if r is None:
+        return {"loi": loi or "khong_ro"}
+    with r:
+        raw = json.load(r)["choices"][0]["message"]["content"]
     return _parse_json(raw)
 
 
@@ -150,13 +183,11 @@ def goi_van_ban(system: str, user: str, max_tokens: int = 700,
         headers={"Content-Type": "application/json",
                  "Authorization": "Bearer " + API_KEY},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return {"text": json.load(r)["choices"][0]["message"]["content"]}
-    except urllib.error.HTTPError as e:
-        return {"loi": f"http_{e.code}"}
-    except Exception as e:
-        return {"loi": type(e).__name__}
+    r, loi = _mo(req, timeout)
+    if r is None:
+        return {"loi": loi or "khong_ro"}
+    with r:
+        return {"text": json.load(r)["choices"][0]["message"]["content"]}
 
 
 def _parse_json(raw: str) -> dict:

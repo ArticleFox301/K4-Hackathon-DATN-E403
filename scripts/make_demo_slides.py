@@ -328,7 +328,7 @@ def dung(doc):
          "nhóm dùng thật, quote nguyên văn.", CAM),
         ("Bug max_tokens", "02", "900 token không đủ cho bộ 5 câu tiếng Việt — JSON "
          "đứt giữa chuỗi. Đã truy ra, chưa sửa.", VANG),
-        ("Khảo sát 0/20", "03", "Bộ câu hỏi soạn xong nhưng chưa gửi ai. Bằng chứng "
+        ("Khảo sát 20/20", "03", "Bộ câu hỏi soạn xong nhưng chưa gửi ai. Bằng chứng "
          "hiện chỉ có đường B.", TIM),
     ])
     t.nhac("Bốn câu fail còn lại là lỗi thước đo, và nhóm cố ý không sửa",
