@@ -272,6 +272,20 @@ def nim_reply(payload):
         ).replace(",", ".")}
     if loi == "thieu_api_key":
         return {"reply": "Chưa có OPENAI_API_KEY trong .env nên mình chưa gọi được model thật."}
+    if loi == "http_429":
+        # Đã thử lại theo LICH_LUI trong quiz_ai mà vẫn bị chặn -> đợt giới hạn
+        # còn dài. Nói rõ đây là giới hạn tần suất chứ không phải sản phẩm hỏng,
+        # và chỉ đường lui dùng được ngay.
+        return {"reply": (
+            "Model đang giới hạn tần suất (HTTP 429) — nhà cung cấp chặn tạm vì "
+            "nhận quá nhiều lượt gọi trong thời gian ngắn. Mình đã tự thử lại 3 "
+            "lần cách nhau 2s/6s/15s nhưng vẫn bị chặn.\n\n"
+            "Đây không phải lỗi của sản phẩm. Chờ khoảng 1–2 phút rồi hỏi lại là "
+            "được. Cần demo ngay thì đặt TUTOR_MODE=mock và chạy lại server — "
+            "chế độ đó không gọi mạng, mọi câu trả lời có tiền tố [MOCK]."
+        )}
+    if loi and loi.startswith("http_5"):
+        return {"reply": f"Máy chủ model đang trục trặc ({loi}). Mình đã thử lại 3 lần. Chờ một chút rồi hỏi lại nhé."}
     return {"reply": f"[Lỗi kết nối model: {loi}] Vui lòng thử lại."}
 
 
