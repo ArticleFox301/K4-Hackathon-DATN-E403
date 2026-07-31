@@ -23,6 +23,24 @@ except Exception as _e:  # thieu file/thu vien -> van chay duoc o che do mock
 PORT = int(os.environ.get("PORT", "8000"))
 TUTOR_MODE = os.environ.get("TUTOR_MODE", "mock").strip().lower() or "mock"
 
+# ------------------------------------------------- "server có đang chạy bản mới nhất không?"
+# Python nạp server.py/quiz_ai.py vào bộ nhớ MỘT lần lúc khởi động. Sửa file
+# xong mà quên khởi động lại thì tiến trình vẫn chạy mã cũ, không có dấu hiệu
+# nào báo — sửa đúng mà hành vi vẫn sai, mất rất nhiều thời gian mò.
+# Chụp mã băm lúc khởi động, rồi /api/health so lại với mã băm trên đĩa.
+FILE_PY = ["server.py", "quiz_ai.py"]
+
+
+def _bam(ten: str) -> str:
+    try:
+        import hashlib
+        return hashlib.sha256((ROOT / ten).read_bytes()).hexdigest()[:10]
+    except Exception:
+        return "?"
+
+
+BAM_LUC_KHOI_DONG = {t: _bam(t) for t in FILE_PY}
+
 # ---------------------------------------------------------------- trạng thái
 # Toàn bộ trạng thái ghép trận nằm trong RAM và ĐƯỢC KHOÁ bằng STATE_LOCK.
 # ThreadingHTTPServer phục vụ mỗi request trên một luồng riêng: hai người cùng
@@ -231,10 +249,30 @@ def nim_reply(payload):
         parts.append(f"{vai}: {m.get('content', '')}")
     user = "\n\n".join(parts)
 
-    kq = quiz_ai.goi_van_ban(system, user, max_tokens=int(payload.get("max_tokens", 700)))
+    max_tokens = int(payload.get("max_tokens", 700))
+
+    # Thời gian chờ phải co giãn theo khối lượng, không được để cứng.
+    #
+    # Trước đây mọi lượt đều dùng mặc định 120 giây của goi_van_ban(). Hỏi một
+    # trang thì thừa, nhưng "Giảng cả file" gửi ~17 nghìn ký tự và xin 1800
+    # token đầu ra — đo thực tế vượt xa 120 giây, nên nút đó LUÔN trả
+    # TimeoutError dù model vẫn đang chạy bình thường.
+    cho = int(min(600, max(120, 60 + len(user) / 120 + max_tokens / 12)))
+
+    kq = quiz_ai.goi_van_ban(system, user, max_tokens=max_tokens, timeout=cho)
     if kq.get("text"):
         return {"reply": kq["text"]}
-    return {"reply": f"[Loi ket noi model: {kq.get('loi', 'khong ro')}] Vui long thu lai."}
+
+    loi = kq.get("loi", "khong ro")
+    if loi == "TimeoutError":
+        return {"reply": (
+            f"Model chưa trả lời xong trong {cho} giây nên mình phải dừng chờ.\n\n"
+            f"Yêu cầu này nặng: {len(user):,} ký tự ngữ cảnh, xin tối đa {max_tokens} token trả về. "
+            "Thử lại thường được vì lần sau model đã ấm; hoặc hỏi từng trang thay vì cả file."
+        ).replace(",", ".")}
+    if loi == "thieu_api_key":
+        return {"reply": "Chưa có OPENAI_API_KEY trong .env nên mình chưa gọi được model thật."}
+    return {"reply": f"[Lỗi kết nối model: {loi}] Vui lòng thử lại."}
 
 
 # Cache bo cau hoi da sinh, theo (materialId, trang).
@@ -589,6 +627,24 @@ class Handler(SimpleHTTPRequestHandler):
         return parse_qs(urlparse(self.path).query)
 
     def do_GET(self):
+        # Tiến trình đang chạy có khớp mã trên đĩa không.
+        if self.path.startswith("/api/health"):
+            tren_dia = {t: _bam(t) for t in FILE_PY}
+            cu = [t for t in FILE_PY if tren_dia[t] != BAM_LUC_KHOI_DONG[t]]
+            self.send_json({
+                "moiNhat": not cu,
+                "fileDaSuaSauKhiChay": cu,
+                "bamLucKhoiDong": BAM_LUC_KHOI_DONG,
+                "bamTrenDia": tren_dia,
+                "tutorMode": TUTOR_MODE,
+                "modelSanSang": bool(quiz_ai and quiz_ai.san_sang()),
+                "model": getattr(quiz_ai, "MODEL", "?") if quiz_ai else "?",
+                "thongBao": ("Server đang chạy đúng mã trên đĩa." if not cu else
+                             "Đã sửa " + ", ".join(cu) + " sau khi khởi động — "
+                             "phải chạy lại server.py thì thay đổi mới có hiệu lực."),
+            })
+            return
+
         # Trạng thái phòng — client poll ~700ms/lần trong lúc đấu.
         if self.path.startswith("/api/quiz/room"):
             room_id = self._query().get("id", [""])[0]

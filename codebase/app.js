@@ -416,10 +416,23 @@ class VLearnReader {
 
   /** Một lượt hỏi Tutor. `ctxLabel` là nhãn ngữ cảnh hiện trên đầu câu trả lời —
    *  học viên phải nhìn thấy AI đang dựa vào đâu (nguyên tắc G2 trong spec §4b). */
-  async hoiTutor({ hienThi, noiDungGui, ctxLabel, system, maxTokens = 800, canhBao = "" }) {
+  async hoiTutor({ hienThi, noiDungGui, ctxLabel, system, maxTokens = 800,
+                   canhBao = "", ghiChuCho = "" }) {
     if (this.state.sending) return;
     const userMessage = { id: Date.now(), isUser: true, isBot: false, hasContext: false, text: hienThi };
     const base = [...this.state.messages, userMessage];
+
+    // Đồng hồ chờ. Lượt "giảng cả file" đo được mất ~168 giây; không có gì nhúc
+    // nhích trong ngần ấy thời gian thì người dùng kết luận là treo và bấm lại,
+    // vừa mất lượt vừa tốn thêm một lượt gọi model.
+    this.choT0 = Date.now();
+    this.ghiChuCho = ghiChuCho;
+    clearInterval(this._choTimer);
+    this._choTimer = setInterval(() => {
+      const el = this.root.querySelector("#vl-cho-sec");
+      if (el) el.textContent = Math.round((Date.now() - this.choT0) / 1000);
+    }, 1000);
+
     this.setState({
       messages: base,
       input: "",
@@ -451,6 +464,7 @@ class VLearnReader {
         sending: false,
         goiY: this.sinhGoiY(),
       }));
+      clearInterval(this._choTimer);
     } catch (err) {
       this.setState((s) => ({
         messages: [...s.messages, {
@@ -463,6 +477,7 @@ class VLearnReader {
         }],
         sending: false,
       }));
+      clearInterval(this._choTimer);
     }
   }
 
@@ -515,6 +530,9 @@ class VLearnReader {
       system: TUTOR_SYSTEM_CA_FILE,
       maxTokens: 1800,
       canhBao,
+      // Đo thực tế trên bộ 29 trang: ~168 giây. Nói trước con số để người dùng
+      // biết là đang chạy chứ không phải treo.
+      ghiChuCho: `Đang giảng ${data.soTrang} trang. Bộ slide dài cỡ này thường mất 2–3 phút — cứ để yên, đừng bấm lại.`,
     });
   }
 
@@ -1642,11 +1660,21 @@ class VLearnReader {
 
   renderSending() {
     if (!this.state.sending) return "";
+    const giay = this.choT0 ? Math.round((Date.now() - this.choT0) / 1000) : 0;
+    const ghiChu = this.ghiChuCho
+      ? `<div style="font-size:12px; color:var(--muted); line-height:1.55;">${esc(this.ghiChuCho)}</div>`
+      : "";
     return `
-      <div style="display:flex; gap:6px; align-items:center; background:var(--soft-bg); border:1px solid var(--card-bd); border-radius:14px; padding:16px; width:76px;">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite;"></span>
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite .2s;"></span>
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite .4s;"></span>
+      <div style="background:var(--soft-bg); border:1px solid var(--card-bd); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:9px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span style="display:flex; gap:5px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite .2s;"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--note-fg);animation:vlblink 1.2s infinite .4s;"></span>
+          </span>
+          <span style="font-family:ui-monospace, Menlo, monospace; font-size:12.5px; color:var(--text-mid);"><span id="vl-cho-sec">${giay}</span>s</span>
+        </div>
+        ${ghiChu}
       </div>`;
   }
 
