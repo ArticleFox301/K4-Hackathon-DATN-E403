@@ -1458,7 +1458,6 @@ class VLearnReader {
       slideScale: `scale(${scale})`,
       slideWrapMinHeight: `${Math.round(600 * s.zoom / 140)}px`,
       leftChevronRot: s.leftOpen ? "none" : "rotate(180deg)",
-      rightChevronRot: s.rightOpen ? "none" : "rotate(180deg)",
       leftBasis: s.leftOpen ? "344px" : "0px",
       rightBasis: s.rightOpen ? "456px" : "0px",
       slidePageBadge: `Trang slide: ${s.page}`,
