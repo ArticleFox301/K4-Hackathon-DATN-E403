@@ -39,3 +39,6 @@ replace_logo.py
 *.tmp
 Thumbs.db
 desktop.ini
+
+# Log chay may
+*.log
