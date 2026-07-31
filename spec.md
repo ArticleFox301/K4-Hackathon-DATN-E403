@@ -245,12 +245,12 @@ khớp nguyên văn với ngữ cảnh — kiểm bằng so khớp chuỗi, khô
 
 | Phần | Người phụ trách | Mã HV | File phải giải thích được ở CP5 |
 |---|---|---|---|
-| Spec + evidence mining | Nguyễn Trung Đức | `[__]` | `spec.md`, `eval/mine_evidence.py` |
-| Prompt + golden set | Trần Thế Ninh | `[__]` | `codebase/quiz_ai.py`, `eval/golden-set.jsonl` |
-| Build backend + eval | Trịnh Quang Anh | `[__]` | `codebase/server.py`, `eval/run_eval.py` |
-| Build flow (UI reader + quiz) | Trịnh Quang Anh | `[__]` | `codebase/app.js`, `codebase/styles.css` |
-| Giao diện Dashboard / Notebook | Nguyễn Thị Thu Trang | `[__]` | `codebase/index_v2.html` |
-| Demo + validation + điều phối | Nguyễn Trung Đức | `[__]` | `validation/feedback-log.md`, slide demo |
+| Spec + evidence mining | Nguyễn Trung Đức | `[2A202601750]` | `spec.md`, `eval/mine_evidence.py` |
+| Prompt + golden set | Trần Thế Ninh | `[2A202602001]` | `codebase/quiz_ai.py`, `eval/golden-set.jsonl` |
+| Build backend + eval | Trịnh Quang Anh | `[2A202601796]` | `codebase/server.py`, `eval/run_eval.py` |
+| Build flow (UI reader + quiz) | Trịnh Quang Anh | `[2A202601796]` | `codebase/app.js`, `codebase/styles.css` |
+| Giao diện Dashboard / Notebook | Nguyễn Thị Thu Trang | `[2A202601634]` | `codebase/index_v2.html` |
+| Demo + validation + điều phối | Nguyễn Trung Đức | `[2A202601750]` | `validation/feedback-log.md`, slide demo |
 
 > ⚠️ **Còn thiếu mã HV của cả 4 người** — điền trước CP5.
 > ⚠️ **Phân công ở trên là mình ghi theo phần việc đã thấy trong repo, cả nhóm cần
