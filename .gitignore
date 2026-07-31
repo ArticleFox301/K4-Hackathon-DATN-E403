@@ -1,3 +1,41 @@
 .DS_Store
 node_modules/
 *.env
+.env
+
+# ---- DATA PACK — TUYỆT ĐỐI KHÔNG COMMIT ----
+# 00-README-de-bai-goc.md mục 3: "Không commit data pack vào repo nộp bài".
+# 01-de-bai.md mục 3: "không chia sẻ ra ngoài khoá, không commit vào repo nộp bài".
+# Vi phạm ảnh hưởng trực tiếp tới điểm của nhóm.
+#
+# Trước đây chỉ chặn phần DẪN XUẤT bên dưới mà quên chính data pack gốc — 15 MB
+# chatlog học viên và 2 bộ slide sẽ lên repo public ngay lệnh commit đầu tiên.
+# Repo chỉ được chứa trích dẫn ngắn kèm mã đoạn (vd `chatlog M1650`), như
+# eval/golden-set.jsonl đang làm.
+data/
+
+# Dẫn xuất từ data pack — chịu cùng ràng buộc.
+# Chạy `python codebase/ingest_slides.py` để tạo lại.
+codebase/slides/
+codebase/slides.json
+codebase/slides-index.json
+
+# ---- Tài liệu tham khảo của bên thứ ba ----
+# Sách/playbook có bản quyền, không phải sản phẩm của nhóm.
+tham-khao/
+
+# ---- Rác build / log ----
+__pycache__/
+*.py[cod]
+codebase/logs/
+logs/delegate/
+
+# ---- File rời không thuộc bài nộp ----
+# Ảnh gốc và script sửa logo dùng một lần lúc dựng giao diện. Bản logo mà ứng
+# dụng thật sự nạp nằm trong codebase/ (logo-vlearn.png, favicon.ico).
+Logo_Vin.png
+replace_logo.py
+*.bak
+*.tmp
+Thumbs.db
+desktop.ini

@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full antialiased">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLearn — Nền tảng Học Thích Ứng & AI Tutor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            vlearn: {
+              navy: '#134D8B',
+              navyDark: '#0B355F',
+              red: '#C72127',
+              ice: '#F0F4F9',
+              lightBlue: '#E8F1FB'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+    
+    /* Watermark text */
+    .watermark-text {
+      position: absolute;
+      top: 38%;
+      left: 12%;
+      transform: rotate(-22deg);
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: rgba(19, 77, 139, 0.035);
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+      letter-spacing: 0.12em;
+    }
+
+    /* Floating Tooltip Selection */
+    #selection-tooltip {
+      display: none;
+      position: absolute;
+      z-index: 100;
+      animation: tooltipPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes tooltipPop {
+      from { opacity: 0; transform: translateY(6px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Page Fade Animations */
+    .page-view {
+      animation: fadeInPage 0.22s ease-out forwards;
+    }
+    @keyframes fadeInPage {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Text Highlight Styling */
+    .vlearn-text-highlight {
+      background-color: rgba(254, 240, 138, 0.85);
+      color: #0f172a;
+      border-radius: 4px;
+      padding: 1px 4px;
+      box-shadow: 0 1px 2px rgba(234, 179, 8, 0.2);
+    }
+    .dark .vlearn-text-highlight {
+      background-color: rgba(202, 138, 4, 0.55);
+      color: #f8fafc;
+    }
+
+    /* Drawing & Crop Canvas */
+    #drawing-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 15;
+      pointer-events: none;
+      border-radius: 1rem;
+    }
+    #drawing-canvas.active-tool {
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+    #drawing-canvas.active-eraser {
+      pointer-events: auto;
+      cursor: cell;
+    }
+    #drawing-canvas.active-crop {
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+
+    /* 3D Flashcard Flip Effect */
+    .perspective-1000 { perspective: 1000px; }
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+    .flashcard-inner.flipped {
+      transform: rotateY(180deg);
+    }
+    .flashcard-front, .flashcard-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      border-radius: 1.25rem;
+    }
+    .flashcard-back {
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans flex flex-col overflow-hidden selection:bg-[#24679f]/20 selection:text-[#0b355f]">
+
+  <!-- TOP NAVIGATION HEADER (With Official VinUni University Logo URL) -->
+  <header class="sticky top-0 z-50 border-b border-slate-200/80 bg-white shadow-[0_3px_5px_rgba(57,63,72,0.08)] dark:border-slate-800 dark:bg-slate-950 shrink-0">
+    <div class="mx-auto flex w-full max-w-[1440px] items-center gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
+      
+      <!-- Official VinUni University Logo -->
+      <button onclick="navigateTo('dashboard')" class="flex items-center gap-3 shrink-0 text-left focus:outline-none">
+        <img alt="VinUni University Logo" src="../Logo_Vin.png" class="h-9 w-auto shrink-0 object-contain">
+        <div class="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
+        <span class="text-xl font-black tracking-tight text-vlearn-navy dark:text-white">
+          <span class="text-vlearn-red">V</span>Learn
+        </span>
+      </button>
+
+      <!-- Main Navbar Links -->
+      <nav class="ml-4 hidden min-w-0 flex-1 items-center gap-1 lg:flex text-[15px] font-semibold">
+        <button id="nav-btn-dashboard" onclick="navigateTo('dashboard')" class="relative inline-flex items-center gap-2 px-4 py-2.5 transition-colors text-vlearn-navy font-bold after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-vlearn-red after:scale-x-100 dark:text-sky-300">
+          <span data-i18n="nav_home">Trang chủ</span>
+        </button>
+        <button id="nav-btn-courses" onclick="navigateTo('courses')" class="relative inline-flex items-center gap-2 px-4 py-2.5 transition-colors text-slate-600 hover:text-vlearn-navy dark:text-slate-300 dark:hover:text-white after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-vlearn-red after:scale-x-0">
+          <span data-i18n="nav_courses">Khóa học của tôi</span>
+        </button>
+        <button id="nav-btn-notebook" onclick="navigateTo('notebook')" class="relative inline-flex items-center gap-2 px-4 py-2.5 transition-colors text-slate-600 hover:text-vlearn-navy dark:text-slate-300 dark:hover:text-white after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-vlearn-red after:scale-x-0">
+          <span data-i18n="nav_notebook">Sổ tay học tập</span>
+        </button>
+      </nav>
+
+      <!-- Clean Minimal Progress Bar -->
+      <div class="hidden md:flex items-center gap-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200">
+        <span>Streak <strong class="text-vlearn-red font-black">3</strong> <span data-i18n="days">ngày</span></span>
+        <span class="text-slate-300">|</span>
+        <span><strong id="user-xp-display" class="text-vlearn-navy dark:text-sky-300 font-black">240</strong> XP</span>
+        <span class="text-slate-300">|</span>
+        <span class="bg-vlearn-navy/10 text-vlearn-navy dark:bg-sky-950 dark:text-sky-300 text-[10px] px-2 py-0.5 rounded-md font-bold">RAG Master</span>
+      </div>
+
+      <!-- Right User Controls -->
+      <div class="ml-auto flex items-center gap-2">
+        <button id="lang-toggle-btn" onclick="toggleLanguage()" class="px-2.5 py-1 text-xs font-black rounded-lg border border-vlearn-navy/20 bg-white text-vlearn-navy hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-sky-200 transition">
+          VI
+        </button>
+        <button onclick="toggleDarkMode()" title="Đổi giao diện Tối/Sáng" class="p-1.5 rounded-lg border border-vlearn-navy/15 bg-white text-vlearn-navy hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-sky-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+        <div class="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+          <div class="w-7 h-7 rounded-full bg-vlearn-navy text-white flex items-center justify-center font-bold text-xs">NT</div>
+          <span id="header-user-name" class="text-xs font-bold text-vlearn-navy dark:text-sky-200 hidden lg:inline max-w-[170px] truncate">26ai.trangntt4@vinuni.edu.vn</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN DYNAMIC VIEWS CONTAINER -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- ================= VIEW 1: TRANG CHỦ (DASHBOARD) ================= -->
+    <div id="view-dashboard" class="flex-1 overflow-y-auto page-view p-4 sm:p-6 lg:p-8 space-y-6">
+      <div class="mx-auto max-w-[1440px] space-y-6">
+        
+        <!-- Hero Banner -->
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs md:p-8 dark:border-slate-800 dark:bg-slate-900">
+          <div class="absolute inset-x-0 top-0 h-1 bg-vlearn-navy"></div>
+          <div class="relative max-w-3xl">
+            <p class="mb-2 text-xs font-bold uppercase tracking-widest text-vlearn-red">VLearn · VinUni AI Thực Chiến</p>
+            <h1 class="text-2xl md:text-3xl font-black text-slate-950 dark:text-white"><span data-i18n="welcome_back">Chào mừng trở lại</span>, NGUYỄN THỊ THU TRANG!</h1>
+            <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300" data-i18n="hero_desc">
+              VLearn đang tổng hợp tiến độ đọc và các tín hiệu học tập của bạn. Bấm chọn khóa học để xem danh sách bài học hoặc trao đổi cùng VLearn Tutor.
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick Stats Cards (Minimalist Design) -->
+        <section class="grid gap-4 sm:grid-cols-3">
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex items-center gap-4">
+            <div class="rounded-xl border border-vlearn-navy/15 bg-vlearn-navy/5 p-3.5 text-vlearn-navy dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="stat_courses">Khóa học</p>
+              <p class="mt-0.5 text-3xl font-black text-slate-950 dark:text-white">1</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex items-center gap-4">
+            <div class="rounded-xl border border-vlearn-navy/15 bg-vlearn-navy/5 p-3.5 text-vlearn-navy dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            </div>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="stat_questions">Hỏi VLearn Tutor</p>
+              <p id="dash-questions-count" class="mt-0.5 text-3xl font-black text-slate-950 dark:text-white">12</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 flex items-center gap-4">
+            <div class="rounded-xl border border-vlearn-navy/15 bg-vlearn-navy/5 p-3.5 text-vlearn-navy dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="stat_quiz">Quiz đã hoàn thành</p>
+              <p id="dash-quiz-count" class="mt-0.5 text-3xl font-black text-slate-950 dark:text-white">4</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA Box -->
+        <div onclick="navigateTo('courses')" class="cursor-pointer group rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition hover:border-vlearn-navy/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="rounded-xl bg-vlearn-navy/10 p-3.5 text-vlearn-navy group-hover:bg-vlearn-navy group-hover:text-white transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-950 dark:text-white" data-i18n="cta_view_courses">Xem khóa học của tôi</h3>
+              <p class="text-xs text-slate-500" data-i18n="cta_view_courses_desc">Mở danh sách đầy đủ các lớp bạn đang theo học để chọn bài giảng Slide.</p>
+            </div>
+          </div>
+          <span class="px-4 py-2 rounded-xl bg-vlearn-navy text-white text-xs font-bold group-hover:bg-vlearn-navyDark transition" data-i18n="btn_enter_course_list">Vào danh sách lớp →</span>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ================= VIEW 2: KHÓA HỌC CỦA TÔI (MY COURSES) ================= -->
+    <div id="view-courses" class="flex-1 overflow-y-auto page-view p-4 sm:p-6 lg:p-8 space-y-6 hidden">
+      <div class="mx-auto max-w-[1440px] space-y-6">
+        
+        <header class="border-b border-slate-200 pb-4 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-vlearn-red">VLearn · VinUni AI Thực Chiến</p>
+            <h1 class="text-2xl font-black text-slate-950 dark:text-white mt-1" data-i18n="my_courses_title">Khóa học của tôi</h1>
+            <p class="text-sm text-slate-500" data-i18n="my_courses_desc">Danh sách các lớp bạn đang tham gia. Bấm chọn lớp để mở bài đọc slide.</p>
+          </div>
+          <span class="rounded-full border border-vlearn-navy/20 bg-white px-3.5 py-1 text-xs font-bold text-vlearn-navy">
+            1 lớp đang theo học
+          </span>
+        </header>
+
+        <!-- Course List Grid -->
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          
+          <!-- Card COMP2010 -->
+          <article class="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs hover:border-vlearn-navy/40 transition dark:border-slate-800 dark:bg-slate-900">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-vlearn-navy/10 text-vlearn-navy dark:bg-sky-950 dark:text-sky-300">
+                  COMP2010
+                </span>
+                <span id="course-read-percent-badge" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">35% đã đọc</span>
+              </div>
+              <h3 class="mt-3 text-lg font-black text-slate-950 dark:text-white">COMP2010 - Khoá 3 + 4 Phase 1</h3>
+              <p class="mt-1 text-xs text-slate-500 leading-relaxed">1074 học viên cùng lớp · VinUni AI Thực Chiến (Prompt Engineering, RAG & Agentic Loop).</p>
+            </div>
+
+            <div class="mt-6 space-y-4">
+              <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div id="course-progress-bar" class="h-full rounded-full bg-vlearn-navy transition-all duration-300" style="width: 35%;"></div>
+              </div>
+              
+              <div class="flex items-center justify-between gap-2 pt-2 text-xs">
+                <button onclick="navigateTo('notebook')" class="flex-1 py-2 px-3 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 transition text-center" data-i18n="btn_notebook">
+                  Sổ tay học tập
+                </button>
+                <button onclick="navigateTo('reader')" class="flex-1 py-2 px-3 rounded-xl bg-vlearn-red text-white font-bold hover:bg-red-700 transition text-center shadow-xs" data-i18n="btn_study_slide">
+                  Vào học Slide →
+                </button>
+              </div>
+            </div>
+          </article>
+
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ================= VIEW 3: PHÒNG ĐỌC SLIDE BÀI HỌC (SLIDE READER & AI) ================= -->
+    <div id="view-reader" class="flex-1 flex overflow-hidden relative hidden">
+
+      <!-- LEFT SIDEBAR: COURSE SYLLABUS -->
+      <aside class="w-60 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 flex flex-col shrink-0 z-20">
+        <div class="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Học liệu COMP2010</span>
+          <span class="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono">Khoá 3+4</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-2 text-xs">
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-700 dark:text-slate-300">
+            Day01 — Tổng Quan AI
+          </div>
+          <div class="space-y-1 pl-1">
+            <div class="p-2 rounded-lg bg-vlearn-red text-white font-bold cursor-pointer flex items-center justify-between shadow-xs">
+              <span class="truncate">day04_prompt_eng.pdf</span>
+              <span class="text-[10px] opacity-90">46p</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-pointer flex items-center justify-between">
+              <span class="truncate">day04_agent_patterns.pdf</span>
+              <span class="text-[10px] text-slate-400">78p</span>
+            </div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 font-bold text-slate-400">
+            Day05 — Agentic RAG & Eval
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER WORKSPACE: TOOLBAR + SLIDE CARD -->
+      <main class="flex-1 flex flex-col bg-slate-200/60 dark:bg-slate-950 overflow-hidden relative">
+        
+        <!-- Minimal Toolbar Top Header (Ít Icon) -->
+        <div class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-4 shrink-0 text-xs z-10 shadow-2xs">
+          
+          <!-- Tool Buttons -->
+          <div class="flex items-center gap-1.5">
+            <button id="tool-read-btn" onclick="setTool('read')" class="px-2.5 py-1.5 rounded-lg bg-vlearn-navy text-white font-bold flex items-center gap-1 shadow-xs">
+              Đọc
+            </button>
+            <button id="tool-pen-btn" onclick="setTool('pen')" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-semibold flex items-center gap-1">
+              Vẽ
+            </button>
+            <button id="tool-crop-btn" onclick="setTool('crop')" title="Khoanh vùng ảnh/sơ đồ để hỏi AI Tutor" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 font-bold flex items-center gap-1">
+              Khoanh vùng hỏi AI
+            </button>
+            <button id="tool-eraser-btn" onclick="setTool('eraser')" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-semibold flex items-center gap-1">
+              Tẩy
+            </button>
+            <button onclick="clearCanvas()" class="px-2 py-1.5 text-slate-400 hover:text-vlearn-red font-medium">Xóa nét</button>
+          </div>
+
+          <!-- SMART AI QUICK ACTIONS -->
+          <div class="hidden lg:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button onclick="generateMindmap()" title="Tạo sơ đồ tư duy toàn bộ bộ slide bài học" class="px-2.5 py-1 rounded-lg bg-vlearn-red text-white hover:bg-red-700 transition font-bold text-[11px] flex items-center gap-1 shadow-2xs">
+              Mindmap
+            </button>
+            <button onclick="triggerAIQuickAction('summarize')" title="Tóm tắt slide này thành 3 ý chính" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-vlearn-navy hover:text-white transition font-bold text-[11px] text-slate-700 dark:text-slate-200 shadow-2xs">
+              Tóm tắt 3 ý
+            </button>
+            <button onclick="triggerAIQuickAction('example')" title="Cho ví dụ thực tế" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 hover:bg-vlearn-navy hover:text-white transition font-bold text-[11px] text-slate-700 dark:text-slate-200 shadow-2xs">
+              Ví dụ
+            </button>
+          </div>
+
+          <!-- FULLSCREEN TOGGLE & PAGE SWITCHER -->
+          <div class="flex items-center gap-2">
+            <button onclick="toggleFullscreen()" title="Chế độ Xem Toàn Màn Hình" class="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 font-bold text-xs flex items-center gap-1">
+              Toàn màn hình
+            </button>
+
+            <button id="toggle-note-btn" onclick="toggleNoteDrawer()" class="px-2.5 py-1.5 rounded-lg border border-vlearn-navy/20 bg-vlearn-navy/5 text-vlearn-navy dark:text-sky-300 hover:bg-vlearn-navy/10 font-bold flex items-center gap-1.5 transition">
+              Ghi chú
+              <span id="note-indicator-dot" class="w-2 h-2 rounded-full bg-vlearn-red hidden"></span>
+            </button>
+
+            <!-- Page Switcher -->
+            <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-bold" title="Dùng phím phím mũi tên Trái/Phải để chuyển trang">
+              <button onclick="prevSlide()" class="hover:text-vlearn-navy px-1">◀</button>
+              <span>Trang <span id="current-slide-num">16</span> / 46</span>
+              <button onclick="nextSlide()" class="hover:text-vlearn-navy px-1">▶</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide Area -->
+        <div class="flex-1 overflow-auto p-4 md:p-6 flex flex-col items-center select-text space-y-6" id="slide-viewport">
+          
+          <!-- Slide Card Container -->
+          <div id="slide-card-container" class="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-6 md:p-10 min-h-[520px] relative transition-all">
+            <div class="watermark-text">VINUNI.EDU.VN · COMP2010</div>
+            
+            <canvas id="drawing-canvas"></canvas>
+
+            <!-- Slide Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-6">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-vlearn-red"></span>
+                <span class="text-xs font-bold tracking-wider text-vlearn-navy dark:text-sky-300 uppercase">Slide <span id="card-slide-num">16</span>: Core Concept</span>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">COMP2010_D04_S16.pdf</span>
+            </div>
+
+            <!-- Slide Content -->
+            <div id="slide-body" class="space-y-6 text-slate-800 dark:text-slate-200 leading-relaxed text-sm md:text-base">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- FLOATING TOOLTIP ON TEXT SELECTION -->
+            <div id="selection-tooltip" class="bg-vlearn-navy text-white text-xs font-bold p-1.5 rounded-xl shadow-2xl border border-white/20 flex items-center gap-1.5">
+              <button onclick="askSelectedText()" class="px-2.5 py-1.5 rounded-lg bg-vlearn-navyDark hover:bg-black transition flex items-center gap-1 text-sky-200">
+                Hỏi AI
+              </button>
+              <button onclick="highlightSelectedText()" class="px-2.5 py-1.5 rounded-lg bg-amber-400 text-slate-900 hover:bg-amber-300 transition flex items-center gap-1 font-extrabold shadow-xs">
+                Highlight text
+              </button>
+              <button onclick="saveSelectedToNotebook()" class="px-2.5 py-1.5 rounded-lg bg-vlearn-red hover:bg-red-700 transition flex items-center gap-1 text-white shadow-xs">
+                Lưu Sổ tay
+              </button>
+            </div>
+          </div>
+
+          <!-- INTERACTIVE DIAGNOSTIC SLIDE QUIZ CARD -->
+          <div class="w-full max-w-4xl rounded-2xl border border-indigo-100 bg-white p-5 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+              <h3 class="text-sm font-extrabold text-indigo-950 dark:text-indigo-200">Thách thức Nhanh (Slide 16)</h3>
+              <span class="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">+20 XP</span>
+            </div>
+
+            <p id="quiz-question-text" class="text-xs md:text-sm font-semibold text-slate-800 dark:text-slate-100 mb-4">
+              Trong mô hình Evaluator-Optimizer Loop, vai trò chính của Evaluator Agent là gì?
+            </p>
+
+            <div id="quiz-options-container" class="grid gap-2.5 sm:grid-cols-2 text-xs">
+              <button onclick="submitQuizOption(0)" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:border-vlearn-navy hover:bg-sky-50 transition text-left font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                A. Tạo ra nội dung bản nháp đầu tiên dựa trên prompt người dùng
+              </button>
+              <button onclick="submitQuizOption(1)" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:border-vlearn-navy hover:bg-sky-50 transition text-left font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                B. Đánh giá bản nháp so với tiêu chí chuẩn và phản hồi tiêu chí chưa đạt
+              </button>
+              <button onclick="submitQuizOption(2)" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:border-vlearn-navy hover:bg-sky-50 transition text-left font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                C. Lưu bản nháp vào cơ sở dữ liệu Vector Database
+              </button>
+              <button onclick="submitQuizOption(3)" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:border-vlearn-navy hover:bg-sky-50 transition text-left font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                D. Tự động dịch bản nháp sang nhiều ngôn ngữ khác nhau
+              </button>
+            </div>
+
+            <div id="quiz-feedback-box" class="mt-4 p-3 rounded-xl hidden text-xs leading-relaxed">
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+      <!-- DRAWER GHI CHÚ CÁ NHÂN -->
+      <aside id="note-drawer" class="w-80 border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 flex flex-col shrink-0 z-30 shadow-2xl absolute right-0 top-0 bottom-0 translate-x-full transition-transform duration-300">
+        <div class="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-vlearn-navy dark:text-sky-300 flex items-center gap-1.5">
+            Ghi chú cá nhân (Slide <span id="note-slide-num">16</span>)
+          </h3>
+          <button onclick="toggleNoteDrawer(false)" class="p-1 rounded-lg hover:bg-slate-200 text-slate-400">✕</button>
+        </div>
+        <div class="p-4 flex-1 flex flex-col justify-between">
+          <div>
+            <p class="text-[11px] text-slate-500 mb-2">Ghi chú cá nhân cho trang slide này:</p>
+            <textarea id="slide-note-input" oninput="saveNote()" placeholder="Nhập ghi chú quan trọng cho slide này..." class="w-full h-80 p-3 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-vlearn-navy text-slate-800 dark:text-slate-100 leading-relaxed resize-none"></textarea>
+          </div>
+          <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+            <span id="note-saved-badge" class="text-emerald-600 font-bold hidden">✓ Đã lưu</span>
+            <button onclick="clearCurrentNote()" class="hover:text-vlearn-red ml-auto">Xóa note slide này</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT FLOATING TOGGLE BUTTON FOR AI TUTOR DRAWER -->
+      <button id="open-tutor-btn" onclick="toggleTutorDrawer(true)" class="fixed right-4 bottom-6 z-40 bg-vlearn-navy text-white p-3.5 rounded-full shadow-2xl border-2 border-white dark:border-slate-800 hover:scale-105 transition flex items-center gap-2 group">
+        <svg class="w-6 h-6 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+        <span class="text-xs font-bold pr-1 hidden group-hover:inline">VLearn Tutor</span>
+      </button>
+
+      <!-- RIGHT DRAWER: VLEARN AI TUTOR -->
+      <aside id="tutor-drawer" class="w-full sm:w-96 border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 flex flex-col shrink-0 z-30 shadow-2xl absolute right-0 top-0 bottom-0 translate-x-full transition-transform duration-300">
+        
+        <div class="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-vlearn-navy text-white flex items-center justify-center font-black text-sm">AI</div>
+            <div>
+              <h3 class="text-sm font-bold text-vlearn-navy dark:text-white">VLearn Tutor</h3>
+              <p class="text-[11px] text-slate-500">Đọc toàn bộ Slide · Phân tích hình ảnh & Trích dẫn [Trang N]</p>
+            </div>
+          </div>
+          <button onclick="toggleTutorDrawer(false)" class="p-1 rounded-lg hover:bg-slate-200 text-slate-400">✕</button>
+        </div>
+
+        <!-- Chat messages -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+          <div class="flex gap-3">
+            <div class="w-7 h-7 rounded-lg bg-vlearn-navy text-white flex items-center justify-center shrink-0 font-bold text-xs">AI</div>
+            <div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl max-w-[85%] text-slate-700 dark:text-slate-200 space-y-2">
+              <p class="font-bold text-vlearn-navy dark:text-sky-300">Xin chào! Mình là VLearn Tutor 👋</p>
+              <p>Mình đã đọc trọn bộ 46 trang Slide COMP2010. Bạn có thể hỏi tóm tắt bộ slide, phân tích hình ảnh/sơ đồ hoặc bôi đen văn bản để giải thích chi tiết.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROACTIVE AI FOLLOW-UP PROMPT CHIPS -->
+        <div id="proactive-prompts-container" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[11px] flex flex-wrap gap-1.5">
+          <span class="w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gợi ý câu hỏi:</span>
+          <button onclick="askProactive('Ví dụ Python thực tế cho Evaluator Agent?')" class="px-2 py-1 rounded-lg bg-sky-100 text-vlearn-navy hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-300 font-semibold transition">
+            Ví dụ Python thực tế?
+          </button>
+          <button onclick="askProactive('So sánh Evaluator-Optimizer với Prompt Chaining?')" class="px-2 py-1 rounded-lg bg-sky-100 text-vlearn-navy hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-300 font-semibold transition">
+            So sánh với Prompt Chaining?
+          </button>
+        </div>
+
+        <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <form onsubmit="handleUserSend(event)" class="relative flex items-center">
+            <input id="user-input" type="text" placeholder="Nhập câu hỏi hoặc bôi đen slide..." class="w-full pr-10 pl-3 py-2.5 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-vlearn-navy text-slate-800 dark:text-slate-100">
+            <button type="submit" class="absolute right-2 p-1.5 bg-vlearn-navy text-white rounded-lg hover:bg-vlearn-navyDark transition">➔</button>
+          </form>
+        </div>
+
+      </aside>
+
+    </div>
+
+
+    <!-- ================= VIEW 4: SỔ TAY HỌC TẬP (STUDY OVERVIEW & FLASHCARDS 3D) ================= -->
+    <div id="view-notebook" class="flex-1 overflow-y-auto page-view hidden">
+      
+      <!-- Notebook Header -->
+      <header class="relative shrink-0 overflow-hidden border-b border-slate-200 bg-white px-4 py-6 sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-950">
+        <div class="mx-auto w-full max-w-[1440px]">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-widest text-vlearn-red">VLearn · VinUni AI Thực Chiến</p>
+              <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">Sổ tay học tập · COMP2010</h1>
+              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Tổng hợp các trang em từng note, bôi đen, hỏi AI và luyện tập Flashcard 3D trong Khoá 3 + 4 Phase 1.</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <button onclick="toggleNotebookTab('feed')" id="nb-tab-btn-feed" class="px-4 py-2 rounded-xl bg-vlearn-navy text-white text-xs font-bold shadow-xs">
+                Danh sách Ghi chú
+              </button>
+              <button onclick="toggleNotebookTab('flashcard')" id="nb-tab-btn-flashcard" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 transition">
+                Thẻ Flashcard 3D
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Notebook Stats Grid & Feed Content -->
+      <div class="px-4 py-6 sm:px-6 lg:px-8 dark:bg-slate-950">
+        <div class="mx-auto w-full max-w-[1440px] space-y-6">
+          
+          <!-- Stats Cards Grid -->
+          <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Ghi chú</p>
+                <p id="nb-stat-notes" class="text-2xl font-black text-slate-950 dark:text-slate-50">0</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Đoạn đánh dấu</p>
+                <p id="nb-stat-highlights" class="text-2xl font-black text-slate-950 dark:text-slate-50">0</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Hỏi VLearn Tutor</p>
+                <p id="nb-stat-questions" class="text-2xl font-black text-slate-950 dark:text-slate-50">0</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Trang cần ôn</p>
+                <p id="nb-stat-review" class="text-2xl font-black text-slate-950 dark:text-slate-50">1</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Tín hiệu đọc</p>
+                <p id="nb-stat-signals" class="text-2xl font-black text-slate-950 dark:text-slate-50">2</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 1: Notebook Feed Container -->
+          <div id="notebook-tab-feed" class="space-y-4">
+            <div id="notebook-items-feed" class="space-y-4">
+              <section id="notebook-empty-banner" class="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+                <svg class="mx-auto h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                <h2 class="mt-4 text-base font-black text-slate-900 dark:text-slate-100">Chưa có dữ liệu ôn tập cá nhân</h2>
+                <p class="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-400">Khi em đọc slide, note, bôi đen bấm "Lưu vào Sổ tay" hoặc hỏi AI, hệ thống sẽ gom lại ở đây để em biết trang nào nên ôn trước.</p>
+                <button onclick="navigateTo('reader')" class="mt-5 inline-flex rounded-xl bg-vlearn-navy px-4 py-2 text-sm font-bold text-white">Mở học liệu</button>
+              </section>
+            </div>
+          </div>
+
+          <!-- TAB 2: INTERACTIVE 3D FLASHCARD SYSTEM -->
+          <div id="notebook-tab-flashcard" class="hidden space-y-6">
+            <div class="flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-200 dark:border-indigo-800">
+              <div>
+                <h3 class="text-sm font-bold text-indigo-950 dark:text-indigo-200">Thẻ Ôn Tập Flashcard (Spaced Repetition)</h3>
+                <p class="text-xs text-indigo-700 dark:text-indigo-300">Bấm vào mặt thẻ để lật kiểm tra câu trả lời của bạn.</p>
+              </div>
+              <span class="text-xs font-bold text-indigo-900 bg-white dark:bg-slate-900 px-3 py-1 rounded-xl shadow-2xs">3 Thẻ Sẵn Có</span>
+            </div>
+
+            <!-- Flashcard 3D Container -->
+            <div class="flex justify-center items-center py-6">
+              <div class="w-full max-w-md h-72 perspective-1000 cursor-pointer" onclick="flipFlashcard(this)">
+                <div class="flashcard-inner shadow-2xl">
+                  
+                  <!-- Front Side -->
+                  <div class="flashcard-front bg-gradient-to-br from-vlearn-navy to-vlearn-navyDark text-white p-8 flex flex-col justify-between border-2 border-white/20">
+                    <div class="flex justify-between items-center text-xs opacity-75">
+                      <span>SLIDE 16 · CORE CONCEPT</span>
+                      <span>BẤM ĐỂ LẬT THẺ</span>
+                    </div>
+                    <div class="text-center">
+                      <h4 class="text-lg font-black mt-2">Evaluator-Optimizer Loop là gì?</h4>
+                      <p class="text-xs opacity-80 mt-1">Khái niệm cốt lõi trong Agent Architecture Patterns</p>
+                    </div>
+                    <div class="text-center text-[11px] opacity-75">
+                      Cụm từ được lưu từ Slide COMP2010
+                    </div>
+                  </div>
+
+                  <!-- Back Side -->
+                  <div class="flashcard-back bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-8 flex flex-col justify-between border-2 border-indigo-500">
+                    <div class="flex justify-between items-center text-xs text-indigo-600 dark:text-indigo-300 font-bold">
+                      <span>ĐÁP ÁN TRÍCH DẪN [SLIDE 16]</span>
+                      <span>MẶT SAU</span>
+                    </div>
+                    <div class="space-y-2 text-xs leading-relaxed">
+                      <p>• <strong>Generator:</strong> Tạo ra bản nháp ban đầu.</p>
+                      <p>• <strong>Evaluator:</strong> So sánh bản nháp với tiêu chí chuẩn (Rubric/Golden Set) & phản hồi lý do cần sửa.</p>
+                      <p>• Vòng lặp dừng khi đạt Quality Bar (&ge;85/100).</p>
+                    </div>
+                    <div class="flex gap-2 text-[11px]">
+                      <button onclick="event.stopPropagation(); alert('Đã nhớ! Thẻ này sẽ hiện lại sau 3 ngày.');" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white font-bold">Đã thuộc (+10 XP)</button>
+                      <button onclick="event.stopPropagation(); alert('Cần ôn lại! Thẻ sẽ xuất hiện lại trong phiên này.');" class="flex-1 py-1.5 rounded-lg bg-amber-500 text-white font-bold">Cần ôn lại</button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- JAVASCRIPT APP ENGINE -->
+  <script>
+    // APP STATE & BILINGUAL DICTIONARY
+    let currentLanguage = 'vi';
+    let currentSlide = 16;
+    const totalSlides = 46;
+    let currentTool = 'read';
+    let isDrawing = false;
+    let isNoteDrawerOpen = false;
+    let userXP = 240;
+    
+    let savedNotes = {};
+    let savedHighlights = [];
+    let askedQuestionsCount = 0;
+    let completedQuizCount = 0;
+
+    const translations = {
+      vi: {
+        nav_home: "Trang chủ",
+        nav_courses: "Khóa học của tôi",
+        nav_notebook: "Sổ tay học tập",
+        days: "ngày",
+        welcome_back: "Chào mừng trở lại",
+        hero_desc: "VLearn đang tổng hợp tiến độ đọc và các tín hiệu học tập của bạn. Bấm chọn khóa học để xem danh sách bài học hoặc trao đổi cùng VLearn Tutor.",
+        stat_courses: "Khóa học",
+        stat_questions: "Hỏi VLearn Tutor",
+        stat_quiz: "Quiz đã hoàn thành",
+        cta_view_courses: "Xem khóa học của tôi",
+        cta_view_courses_desc: "Mở danh sách đầy đủ các lớp bạn đang theo học để chọn bài giảng Slide.",
+        btn_enter_course_list: "Vào danh sách lớp →",
+        my_courses_title: "Khóa học của tôi",
+        my_courses_desc: "Danh sách các lớp bạn đang tham gia. Bấm chọn lớp để mở bài đọc slide.",
+        btn_notebook: "Sổ tay học tập",
+        btn_study_slide: "Vào học Slide →"
+      },
+      en: {
+        nav_home: "Home",
+        nav_courses: "My Courses",
+        nav_notebook: "Study Notebook",
+        days: "days",
+        welcome_back: "Welcome back",
+        hero_desc: "VLearn is tracking your reading progress and learning signals. Select a course to view slide lectures or chat with your AI Tutor.",
+        stat_courses: "Courses",
+        stat_questions: "AI Tutor Queries",
+        stat_quiz: "Quizzes Completed",
+        cta_view_courses: "View My Courses",
+        cta_view_courses_desc: "Open the full list of enrolled classes to choose your slide deck.",
+        btn_enter_course_list: "Go to Class List →",
+        my_courses_title: "My Enrolled Courses",
+        my_courses_desc: "List of classes you are currently taking. Click to open slide study room.",
+        btn_notebook: "Study Notebook",
+        btn_study_slide: "Study Slide →"
+      }
+    };
+
+    const slidesData = {
+      15: {
+        title: "Slide 15: Agent Patterns (Anthropic)",
+        content: `
+          <h2 class="text-xl font-bold text-vlearn-navy dark:text-sky-300">Architecture Patterns for Building AI Agents</h2>
+          <p class="text-sm text-slate-500">Các mẫu kiến trúc Agent phổ biến theo tài liệu kỹ thuật của Anthropic.</p>
+          <div class="grid gap-3 my-4 text-xs">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200">
+              <span class="font-bold text-vlearn-navy dark:text-sky-400">1. Prompt Chaining:</span>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">Chuỗi các bước gọi LLM nối tiếp nhau, trong đó output của bước trước là input của bước sau.</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200">
+              <span class="font-bold text-vlearn-navy dark:text-sky-400">2. Routing:</span>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">Phân loại ý định người dùng để chuyển hướng câu hỏi đến chuyên gia/prompt chuyên biệt.</p>
+            </div>
+          </div>
+        `
+      },
+      16: {
+        title: "Slide 16: Evaluator-Optimizer Loop",
+        content: `
+          <h2 class="text-xl md:text-2xl font-black text-vlearn-navy dark:text-sky-300">Vòng lặp Đánh giá & Tối ưu (Evaluator-Optimizer)</h2>
+          <p class="text-sm font-medium text-slate-500">Mẫu thiết kế hai Agent đóng vai trò Sinh phản hồi & Đánh giá chất lượng.</p>
+
+          <div class="my-4 p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-vlearn-navyDark text-white shadow-md border border-slate-700">
+            <div class="flex items-center justify-between text-xs text-sky-300 font-bold mb-3 border-b border-white/10 pb-2">
+              <span>MULTIMODAL ARCHITECTURE DIAGRAM [SLIDE 16]</span>
+              <span class="bg-vlearn-red text-white px-2 py-0.5 rounded text-[10px]">Vision OCR Active</span>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-around gap-4 text-center text-xs py-2">
+              <div class="p-3 rounded-xl bg-white/10 border border-white/20 w-full sm:w-1/3">
+                <p class="font-bold mt-1 text-sky-200">Generator Agent</p>
+                <p class="text-[11px] opacity-80">Sinh bản nháp ban đầu</p>
+              </div>
+              
+              <div class="text-amber-300 font-black text-base flex flex-col items-center">
+                <span>➔ Input ➔</span>
+                <span class="text-[10px] text-slate-300 font-mono">Loop if Score &lt; 85</span>
+                <span>Custom Feedback</span>
+              </div>
+
+              <div class="p-3 rounded-xl bg-white/10 border border-white/20 w-full sm:w-1/3">
+                <p class="font-bold mt-1 text-amber-200">Evaluator Agent</p>
+                <p class="text-[11px] opacity-80">Chấm điểm vs Golden Set</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 space-y-3 text-xs md:text-sm">
+            <p class="font-semibold text-slate-700 dark:text-slate-200">• <strong>Generator Agent:</strong> Tạo ra bản nháp câu trả lời ban đầu dựa trên yêu cầu.</p>
+            <p class="font-semibold text-slate-700 dark:text-slate-200">• <strong>Evaluator Agent:</strong> So sánh bản nháp với tiêu chí chuẩn (Rubric/Golden Set) và phản hồi lý do cần tối ưu.</p>
+            <p class="font-semibold text-slate-700 dark:text-slate-200">• Vòng lặp dừng lại khi kết quả vượt qua mốc Quality Bar (VD: Score &ge; 85/100).</p>
+          </div>
+        `
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSlide(currentSlide);
+      setupTextSelection();
+      setupCanvasDrawing();
+      setupKeyboardNavigation();
+    });
+
+    function setupKeyboardNavigation() {
+      document.addEventListener('keydown', (e) => {
+        if (['TEXTAREA', 'INPUT'].includes(document.activeElement.tagName)) return;
+        if (e.key === 'ArrowLeft' || e.key === 'PageUp') prevSlide();
+        else if (e.key === 'ArrowRight' || e.key === 'PageDown') nextSlide();
+      });
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    function toggleLanguage() {
+      currentLanguage = (currentLanguage === 'vi') ? 'en' : 'vi';
+      document.getElementById('lang-toggle-btn').innerText = (currentLanguage === 'vi') ? 'VI' : 'EN';
+
+      const dict = translations[currentLanguage];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) el.innerText = dict[key];
+      });
+    }
+
+    function navigateTo(viewId) {
+      document.getElementById('view-dashboard').classList.add('hidden');
+      document.getElementById('view-courses').classList.add('hidden');
+      document.getElementById('view-reader').classList.add('hidden');
+      document.getElementById('view-notebook').classList.add('hidden');
+
+      ['dashboard', 'courses', 'notebook'].forEach(id => {
+        const btn = document.getElementById(`nav-btn-${id}`);
+        if (btn) {
+          btn.className = "relative inline-flex items-center gap-2 px-4 py-2.5 transition-colors text-slate-600 hover:text-vlearn-navy dark:text-slate-300 dark:hover:text-white after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-vlearn-red after:scale-x-0";
+        }
+      });
+
+      const activeBtn = document.getElementById(`nav-btn-${viewId}`);
+      if (activeBtn) {
+        activeBtn.className = "relative inline-flex items-center gap-2 px-4 py-2.5 transition-colors text-vlearn-navy font-bold after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-vlearn-red after:scale-x-100 dark:text-sky-300";
+      }
+
+      if (viewId === 'dashboard') {
+        document.getElementById('view-dashboard').classList.remove('hidden');
+      } else if (viewId === 'courses') {
+        document.getElementById('view-courses').classList.remove('hidden');
+      } else if (viewId === 'reader') {
+        document.getElementById('view-reader').classList.remove('hidden');
+        resizeCanvas();
+      } else if (viewId === 'notebook') {
+        document.getElementById('view-notebook').classList.remove('hidden');
+        updateNotebookFeed();
+      }
+    }
+
+    function renderSlide(num) {
+      const data = slidesData[num] || {
+        title: `Slide ${num}: Core Concept`,
+        content: `<h2 class="text-xl font-bold text-vlearn-navy">Slide ${num}</h2><p class="text-sm text-slate-600 mt-2">Nội dung bài học thuộc COMP2010_D04_S${num}.pdf...</p>`
+      };
+      document.getElementById('current-slide-num').innerText = num;
+      document.getElementById('card-slide-num').innerText = num;
+      document.getElementById('note-slide-num').innerText = num;
+      document.getElementById('slide-body').innerHTML = data.content;
+      document.getElementById('slide-note-input').value = savedNotes[num] || "";
+      
+      const dot = document.getElementById('note-indicator-dot');
+      if (savedNotes[num] && savedNotes[num].trim().length > 0) dot.classList.remove('hidden');
+      else dot.classList.add('hidden');
+
+      const readPercent = Math.round((num / totalSlides) * 100);
+      document.getElementById('course-progress-bar').style.width = `${readPercent}%`;
+      document.getElementById('course-read-percent-badge').innerText = `${readPercent}% đã đọc`;
+
+      const quizFeedback = document.getElementById('quiz-feedback-box');
+      if (quizFeedback) quizFeedback.classList.add('hidden');
+    }
+
+    function prevSlide() { if (currentSlide > 1) { currentSlide--; renderSlide(currentSlide); } }
+    function nextSlide() { if (currentSlide < totalSlides) { currentSlide++; renderSlide(currentSlide); } }
+
+    function generateMindmap() {
+      toggleTutorDrawer(true);
+      askedQuestionsCount++;
+      updateNotebookCounts();
+
+      appendUserMessage("Sơ đồ tư duy (Mindmap) tóm tắt toàn bộ 46 Slide COMP2010");
+      setTimeout(() => {
+        appendAIMessage(`
+          <p class="font-bold text-vlearn-navy dark:text-sky-300">Sơ đồ tư duy toàn bộ bộ Slide COMP2010</p>
+          <p class="text-[11px] text-slate-500 mb-2">Được tổng hợp tự động từ 46 slide bài giảng:</p>
+          
+          <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-mono">
+            <strong>COMP2010: Agent Architecture Patterns</strong><br>
+            ├── 1. Basic Prompting & Chaining<br>
+            │   ├── Sequential Calls<br>
+            │   └── Input-Output Pipelines<br>
+            ├── 2. Routing & Intent Classification<br>
+            │   ├── Intent Router<br>
+            │   └── Domain Specialist Agents<br>
+            └── 3. Evaluator-Optimizer Loop [Slide 16]<br>
+                ├── Generator Agent (Draft Creator)<br>
+                ├── Evaluator Agent (Quality Inspector)<br>
+                └── Quality Bar Stopping Criterion (&ge;85)
+          </div>
+        `);
+      }, 500);
+    }
+
+    function submitQuizOption(selectedIdx) {
+      const feedback = document.getElementById('quiz-feedback-box');
+      feedback.classList.remove('hidden');
+
+      if (selectedIdx === 1) {
+        feedback.className = "mt-4 p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs leading-relaxed dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800";
+        feedback.innerHTML = `
+          <div class="flex items-center gap-2 font-black text-emerald-700 dark:text-emerald-300">
+            <span>CHÍNH XÁC! (+20 XP)</span>
+          </div>
+          <p class="mt-1">Evaluator Agent đóng vai trò kiểm tra bản nháp đối chiếu với tiêu chí chuẩn (Rubric/Golden Set) trước khi quyết định có cần tối ưu lại hay không [Trích từ Slide 16].</p>
+        `;
+        
+        userXP += 20;
+        document.getElementById('user-xp-display').innerText = userXP;
+        completedQuizCount++;
+        document.getElementById('dash-quiz-count').innerText = 4 + completedQuizCount;
+
+        if (window.confetti) {
+          window.confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        }
+
+      } else {
+        feedback.className = "mt-4 p-3 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 text-xs leading-relaxed dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800";
+        feedback.innerHTML = `
+          <div class="flex items-center gap-2 font-black text-rose-700 dark:text-rose-300">
+            <span>CHƯA CHÍNH XÁC</span>
+          </div>
+          <p class="mt-1">Gợi ý: Đáp án A là vai trò của <strong>Generator Agent</strong>. Hãy đọc lại dòng thứ 2 trong Slide 16 để thấy nhiệm vụ chấm điểm của Evaluator nhé!</p>
+        `;
+      }
+    }
+
+    function triggerAIQuickAction(type) {
+      toggleTutorDrawer(true);
+      askedQuestionsCount++;
+      updateNotebookCounts();
+
+      if (type === 'summarize') {
+        appendUserMessage(`Tóm tắt 3 ý chính của Slide ${currentSlide}`);
+        setTimeout(() => {
+          appendAIMessage(`
+            <p class="font-bold text-vlearn-navy dark:text-sky-300">Tóm tắt 3 ý chính [Slide ${currentSlide}]</p>
+            <ol class="list-decimal pl-4 space-y-1">
+              <li><strong>Mẫu 2 Agent:</strong> Generator phụ trách sinh nội dung, Evaluator phụ trách kiểm định.</li>
+              <li><strong>Phản hồi lặp lại:</strong> Nếu chưa đạt chuẩn, Evaluator sẽ trả phản hồi cụ thể để Generator làm lại.</li>
+              <li><strong>Điểm dừng:</strong> Vòng lặp tự động kết thúc khi chất lượng vượt Quality Bar (&ge;85/100).</li>
+            </ol>
+          `);
+        }, 500);
+      } else if (type === 'example') {
+        appendUserMessage(`Ví dụ thực tế về Evaluator-Optimizer trong phần mềm`);
+        setTimeout(() => {
+          appendAIMessage(`
+            <p class="font-bold text-vlearn-navy dark:text-sky-300">Ví dụ thực tế [Slide ${currentSlide}]</p>
+            <p><strong>Ứng dụng viết mã tự động (Automated Code Generator):</strong></p>
+            <p>• <em>Generator AI:</em> Viết đoạn code Python xử lý dữ liệu.</p>
+            <p>• <em>Evaluator AI (Compiler / Linter):</em> Chạy Unit Test thử nghiệm. Nếu phát hiện lỗi Syntax hoặc Memory Leak, chuyển phản hồi lỗi cho Generator để sửa lại cho tới khi test PASS 100%.</p>
+          `);
+        }, 500);
+      }
+    }
+
+    function askProactive(questionText) {
+      toggleTutorDrawer(true);
+      appendUserMessage(questionText);
+      askedQuestionsCount++;
+      updateNotebookCounts();
+
+      setTimeout(() => {
+        appendAIMessage(`
+          <p class="font-bold text-vlearn-navy dark:text-sky-300">Giải đáp chuyên sâu [Trích dẫn Slide ${currentSlide}]</p>
+          <p>Câu hỏi của bạn <em>"${escapeHtml(questionText)}"</em> rất quan trọng trong thiết kế Agentic Workflow. Hệ thống đã trích dẫn thông tin để tối ưu hóa quy trình RAG lặp lại.</p>
+        `);
+      }, 500);
+    }
+
+    function toggleNoteDrawer(open) {
+      const drawer = document.getElementById('note-drawer');
+      if (open === undefined) isNoteDrawerOpen = !isNoteDrawerOpen;
+      else isNoteDrawerOpen = open;
+
+      if (isNoteDrawerOpen) {
+        drawer.classList.remove('translate-x-full');
+      } else {
+        drawer.classList.add('translate-x-full');
+      }
+    }
+
+    function saveNote() {
+      const text = document.getElementById('slide-note-input').value;
+      savedNotes[currentSlide] = text;
+      const badge = document.getElementById('note-saved-badge');
+      badge.classList.remove('hidden');
+      setTimeout(() => badge.classList.add('hidden'), 1200);
+
+      const dot = document.getElementById('note-indicator-dot');
+      if (text.trim().length > 0) dot.classList.remove('hidden');
+      else dot.classList.add('hidden');
+
+      updateNotebookCounts();
+    }
+
+    function clearCurrentNote() {
+      document.getElementById('slide-note-input').value = "";
+      delete savedNotes[currentSlide];
+      document.getElementById('note-indicator-dot').classList.add('hidden');
+      updateNotebookCounts();
+    }
+
+    let selectedTextBuffer = "";
+    let selectedRange = null;
+
+    function setupTextSelection() {
+      const tooltip = document.getElementById('selection-tooltip');
+      document.addEventListener('selectionchange', () => {
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+        if (text.length > 2) {
+          selectedTextBuffer = text;
+          if (selection.rangeCount > 0) selectedRange = selection.getRangeAt(0);
+          
+          const rect = selectedRange.getBoundingClientRect();
+          tooltip.style.left = `${rect.left + window.scrollX - 20}px`;
+          tooltip.style.top = `${rect.top + window.scrollY - 50}px`;
+          tooltip.style.display = 'flex';
+        } else {
+          tooltip.style.display = 'none';
+        }
+      });
+    }
+
+    function highlightSelectedText() {
+      if (!selectedRange || !selectedTextBuffer) return;
+      try {
+        const span = document.createElement('mark');
+        span.className = 'vlearn-text-highlight';
+        selectedRange.surroundContents(span);
+      } catch (err) {
+        console.log("Surround contents fallback", err);
+      }
+
+      savedHighlights.push({
+        slide: currentSlide,
+        text: selectedTextBuffer,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      });
+
+      document.getElementById('selection-tooltip').style.display = 'none';
+      window.getSelection().removeAllRanges();
+      updateNotebookCounts();
+    }
+
+    function askSelectedText() {
+      if (!selectedTextBuffer) return;
+      toggleTutorDrawer(true);
+      appendUserMessage(`Giải thích đoạn bôi đen ở Trang ${currentSlide}: "${selectedTextBuffer}"`);
+      askedQuestionsCount++;
+      updateNotebookCounts();
+
+      setTimeout(() => {
+        appendAIMessage(`
+          <p class="font-bold text-vlearn-navy dark:text-sky-300">Giải thích đoạn bôi đen <span class="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded font-mono">[Trang ${currentSlide}]</span></p>
+          <p>Đoạn <em>"${escapeHtml(selectedTextBuffer)}"</em> thuộc quy trình đảm bảo chất lượng phản hồi trước khi trả kết quả lại cho học viên.</p>
+        `);
+      }, 500);
+
+      document.getElementById('selection-tooltip').style.display = 'none';
+    }
+
+    function saveSelectedToNotebook() {
+      if (!selectedTextBuffer) return;
+      highlightSelectedText();
+      alert(`Đã tô Highlight và lưu đoạn bôi đen từ Trang ${currentSlide} vào Sổ tay học tập!`);
+    }
+
+    let ctx;
+    let cropStartX = 0, cropStartY = 0;
+
+    function setupCanvasDrawing() {
+      const canvas = document.getElementById('drawing-canvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+    }
+
+    function resizeCanvas() {
+      const container = document.getElementById('slide-card-container');
+      const canvas = document.getElementById('drawing-canvas');
+      if (container && canvas) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+      }
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function setTool(tool) {
+      currentTool = tool;
+      const canvas = document.getElementById('drawing-canvas');
+      
+      ['read', 'pen', 'crop', 'eraser'].forEach(t => {
+        const btn = document.getElementById(`tool-${t}-btn`);
+        if (btn) btn.className = "px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 font-semibold flex items-center gap-1";
+      });
+
+      canvas.classList.remove('active-tool', 'active-eraser', 'active-crop');
+
+      if (tool === 'read') {
+        document.getElementById('tool-read-btn').className = "px-2.5 py-1.5 rounded-lg bg-vlearn-navy text-white font-bold flex items-center gap-1 shadow-xs";
+      } else if (tool === 'pen') {
+        canvas.classList.add('active-tool');
+        document.getElementById('tool-pen-btn').className = "px-2.5 py-1.5 rounded-lg bg-vlearn-navy text-white font-bold flex items-center gap-1 shadow-xs";
+      } else if (tool === 'crop') {
+        canvas.classList.add('active-crop');
+        document.getElementById('tool-crop-btn').className = "px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-900 font-extrabold flex items-center gap-1 shadow-xs";
+      } else if (tool === 'eraser') {
+        canvas.classList.add('active-eraser');
+        document.getElementById('tool-eraser-btn').className = "px-2.5 py-1.5 rounded-lg bg-slate-800 text-white font-bold flex items-center gap-1 shadow-xs";
+      }
+    }
+
+    function startDrawing(e) {
+      if (currentTool === 'read') return;
+      isDrawing = true;
+      const rect = e.target.getBoundingClientRect();
+      cropStartX = e.clientX - rect.left;
+      cropStartY = e.clientY - rect.top;
+
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        ctx.beginPath();
+        ctx.moveTo(cropStartX, cropStartY);
+      }
+    }
+
+    function draw(e) {
+      if (!isDrawing || currentTool === 'read') return;
+      const rect = e.target.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (currentTool === 'pen') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#C72127';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      } else if (currentTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 22;
+        ctx.lineCap = 'round';
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      } else if (currentTool === 'crop') {
+        const canvas = document.getElementById('drawing-canvas');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(cropStartX, cropStartY, x - cropStartX, y - cropStartY);
+      }
+    }
+
+    function stopDrawing(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      ctx.setLineDash([]);
+
+      if (currentTool === 'crop') {
+        toggleTutorDrawer(true);
+        askedQuestionsCount++;
+        updateNotebookCounts();
+
+        appendUserMessage(`Phân tích vùng chọn hình ảnh tại Trang ${currentSlide}`);
+        setTimeout(() => {
+          appendAIMessage(`
+            <p class="font-bold text-vlearn-navy dark:text-sky-300">Phân tích Vision AI vùng ảnh khoanh vùng <span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-mono">[Trang ${currentSlide}]</span></p>
+            <p>VLearn Tutor đã đọc thành công sơ đồ bạn khoanh vùng:</p>
+            <p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">• Đây là luồng trao đổi giữa <strong>Generator Agent</strong> và <strong>Evaluator Agent</strong>. Sơ đồ mô tả quy trình lặp cho đến khi điểm Quality Bar vượt mốc 85/100.</p>
+          `);
+        }, 600);
+      }
+    }
+
+    function clearCanvas() {
+      const canvas = document.getElementById('drawing-canvas');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function toggleTutorDrawer(open) {
+      const drawer = document.getElementById('tutor-drawer');
+      const btn = document.getElementById('open-tutor-btn');
+      if (open) {
+        drawer.classList.remove('translate-x-full');
+        btn.classList.add('hidden');
+      } else {
+        drawer.classList.add('translate-x-full');
+        btn.classList.remove('hidden');
+      }
+    }
+
+    function handleUserSend(e) {
+      e.preventDefault();
+      const input = document.getElementById('user-input');
+      const val = input.value.trim();
+      if (!val) return;
+
+      appendUserMessage(val);
+      input.value = "";
+      askedQuestionsCount++;
+      updateNotebookCounts();
+
+      setTimeout(() => {
+        appendAIMessage(`
+          <p class="font-bold text-vlearn-navy dark:text-sky-300">Trả lời câu hỏi <span class="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded font-mono">[Trang ${currentSlide}]</span></p>
+          <p>Dựa trên nội dung <strong>Slide ${currentSlide}</strong> trong tài liệu COMP2010, đây là giải thích chính xác có trích dẫn nguồn.</p>
+        `);
+      }, 500);
+    }
+
+    function appendUserMessage(msg) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = "flex gap-3 justify-end";
+      div.innerHTML = `
+        <div class="bg-vlearn-navy text-white p-3 rounded-2xl max-w-[85%] text-xs">
+          <p class="text-[10px] opacity-75 font-mono mb-0.5">SLIDE TRANG ${currentSlide}</p>
+          <p>${escapeHtml(msg)}</p>
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function appendAIMessage(html) {
+      const container = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = "flex gap-3";
+      div.innerHTML = `
+        <div class="w-7 h-7 rounded-lg bg-vlearn-navy text-white flex items-center justify-center shrink-0 font-bold text-xs">AI</div>
+        <div class="bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl max-w-[85%] text-slate-700 dark:text-slate-200 space-y-2">
+          ${html}
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function toggleNotebookTab(tab) {
+      const feedTab = document.getElementById('notebook-tab-feed');
+      const flashcardTab = document.getElementById('notebook-tab-flashcard');
+      const feedBtn = document.getElementById('nb-tab-btn-feed');
+      const flashcardBtn = document.getElementById('nb-tab-btn-flashcard');
+
+      if (tab === 'feed') {
+        feedTab.classList.remove('hidden');
+        flashcardTab.classList.add('hidden');
+        feedBtn.className = "px-4 py-2 rounded-xl bg-vlearn-navy text-white text-xs font-bold shadow-xs";
+        flashcardBtn.className = "px-4 py-2 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 transition";
+      } else {
+        feedTab.classList.add('hidden');
+        flashcardTab.classList.remove('hidden');
+        flashcardBtn.className = "px-4 py-2 rounded-xl bg-vlearn-navy text-white text-xs font-bold shadow-xs";
+        feedBtn.className = "px-4 py-2 rounded-xl border border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 transition";
+      }
+    }
+
+    function flipFlashcard(cardEl) {
+      const inner = cardEl.querySelector('.flashcard-inner');
+      inner.classList.toggle('flipped');
+    }
+
+    function updateNotebookCounts() {
+      const notesCount = Object.keys(savedNotes).filter(k => savedNotes[k].trim().length > 0).length;
+      const hlCount = savedHighlights.length;
+
+      document.getElementById('nb-stat-notes').innerText = notesCount;
+      document.getElementById('nb-stat-highlights').innerText = hlCount;
+      document.getElementById('nb-stat-questions').innerText = askedQuestionsCount;
+      document.getElementById('dash-questions-count').innerText = 12 + askedQuestionsCount;
+    }
+
+    function updateNotebookFeed() {
+      updateNotebookCounts();
+      const feed = document.getElementById('notebook-items-feed');
+      const emptyBanner = document.getElementById('notebook-empty-banner');
+      
+      const notesKeys = Object.keys(savedNotes).filter(k => savedNotes[k].trim().length > 0);
+      
+      if (notesKeys.length === 0 && savedHighlights.length === 0) {
+        if (emptyBanner) emptyBanner.classList.remove('hidden');
+        return;
+      }
+
+      if (emptyBanner) emptyBanner.classList.add('hidden');
+      
+      let html = '';
+
+      savedHighlights.forEach(hl => {
+        html += `
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-3">
+              <span class="text-xs font-bold text-vlearn-red bg-red-50 px-2 py-0.5 rounded-md">Đoạn bôi đen · Slide ${hl.slide}</span>
+              <span class="text-[10px] text-slate-400 font-mono">${hl.time}</span>
+            </div>
+            <p class="text-xs italic text-slate-700 dark:text-slate-200 bg-amber-50 dark:bg-slate-800/60 p-3 rounded-xl border border-amber-200/60">
+              "${escapeHtml(hl.text)}"
+            </p>
+          </div>
+        `;
+      });
+
+      notesKeys.forEach(slideNum => {
+        html += `
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-3">
+              <span class="text-xs font-bold text-vlearn-navy bg-sky-50 px-2 py-0.5 rounded-md">Ghi chú cá nhân · Slide ${slideNum}</span>
+            </div>
+            <p class="text-xs leading-relaxed text-slate-800 dark:text-slate-100">
+              ${escapeHtml(savedNotes[slideNum])}
+            </p>
+          </div>
+        `;
+      });
+
+      feed.innerHTML = html;
+    }
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+  </script>
+</body>
+</html>
