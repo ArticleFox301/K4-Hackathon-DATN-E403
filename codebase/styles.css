@@ -1019,7 +1019,11 @@ button { font-family: inherit; }
   padding: 0 2px;
 }
 
-/* Ngăn kéo ghi chú theo trang. */
+/* Ngăn kéo ghi chú theo trang.
+   Đóng = translateX(100%) trượt RA NGOÀI <main>, nhưng main không cắt phần
+   tràn nên ngăn kéo đáp thẳng lên cột Tutor bên cạnh — nhìn như "không tắt
+   được" và chặn luôn click vào khung chat. Phải ẩn hẳn (visibility) sau khi
+   animation trượt chạy xong; visibility:hidden cũng trả lại click cho Tutor. */
 .vl-drawer {
   position: absolute;
   top: 0;
@@ -1033,10 +1037,15 @@ button { font-family: inherit; }
   border-left: 1px solid var(--line);
   box-shadow: -18px 0 44px rgba(0, 0, 0, .32);
   transform: translateX(100%);
-  transition: transform .24s cubic-bezier(.2, .8, .3, 1);
+  visibility: hidden;
+  transition: transform .24s cubic-bezier(.2, .8, .3, 1), visibility 0s linear .24s;
 }
 
-.vl-drawer.is-open { transform: none; }
+.vl-drawer.is-open {
+  transform: none;
+  visibility: visible;
+  transition: transform .24s cubic-bezier(.2, .8, .3, 1), visibility 0s linear 0s;
+}
 
 .vl-drawer-head {
   display: flex;

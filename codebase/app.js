@@ -1961,10 +1961,17 @@ class VLearnReader {
 
   // ------------------------------------------------------------ render chính
   render() {
-    const prevInput = this.root.querySelector("#vl-input");
-    const hadFocus = prevInput && document.activeElement === prevInput;
-    const caret = hadFocus ? prevInput.selectionStart : null;
-    const caretEnd = hadFocus ? prevInput.selectionEnd : null;
+    // Ghi lại Ô NHẬP NÀO đang giữ focus (chat #vl-input hay ghi chú
+    // #vl-note-input) để trả lại sau khi innerHTML thay mới toàn bộ DOM.
+    // Heartbeat presence có thể render() giữa lúc đang gõ — trước đây chỉ trả
+    // focus cho ô chat, nên đang gõ ghi chú dở thì bị đá ra ngoài textarea.
+    const focusId = ["vl-input", "vl-note-input"].find((id) => {
+      const el = this.root.querySelector("#" + id);
+      return el && document.activeElement === el;
+    }) || null;
+    const prevFocusEl = focusId ? this.root.querySelector("#" + focusId) : null;
+    const caret = prevFocusEl ? prevFocusEl.selectionStart : null;
+    const caretEnd = prevFocusEl ? prevFocusEl.selectionEnd : null;
     this.luuNetVe();
 
     const v = this.vals();
@@ -2067,7 +2074,7 @@ class VLearnReader {
             </div>
 
             <button data-action="toggleLeft" style="position:absolute; left:0; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:34px; height:70px; border-radius:0 14px 14px 0; background:var(--card-bg); border:1px solid var(--card-bd); border-left:none; color:var(--icon); cursor:pointer;">${ico("chevron-left", 18, `transition:transform .18s; transform:${v.leftChevronRot}`)}</button>
-            <button data-action="toggleRight" style="position:absolute; right:0; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:34px; height:70px; border-radius:14px 0 0 14px; background:var(--card-bg); border:1px solid var(--card-bd); border-right:none; color:var(--icon); cursor:pointer;">${ico("chevron-right", 18, `transition:transform .18s; transform:${v.rightChevronRot}`)}</button>
+            <button data-action="toggleRight" title="Mở/đóng VLearn Tutor" style="position:absolute; right:0; top:50%; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; width:34px; height:70px; border-radius:14px 0 0 14px; background:var(--card-bg); border:1px solid var(--card-bd); border-right:none; color:var(--icon); cursor:pointer;">${ico("bot", 18, "color:var(--note-fg);")}</button>
 
             <div style="flex:0 0 auto; display:flex; justify-content:center; padding:14px;">
               <div style="display:flex; align-items:center; gap:14px; background:var(--card-bg); border:1px solid var(--card-bd); border-radius:12px; padding:8px 14px;">
@@ -2146,7 +2153,7 @@ class VLearnReader {
 
     this.bind();
     this.scrollChat();
-    this.restoreFocus(hadFocus, caret, caretEnd);
+    this.restoreFocus(focusId, caret, caretEnd);
     // Gọi THẲNG, không qua requestAnimationFrame: tab đang ở nền thì trình
     // duyệt không vẽ frame nào, rAF không bao giờ chạy và canvas kẹt ở kích
     // thước mặc định 300x150 -> nét bút lệch hẳn khỏi con trỏ. Đo đồng bộ luôn
@@ -2232,9 +2239,9 @@ class VLearnReader {
     }
   }
 
-  restoreFocus(hadFocus, caret, caretEnd) {
-    if (!hadFocus) return;
-    const input = this.root.querySelector("#vl-input");
+  restoreFocus(focusId, caret, caretEnd) {
+    if (!focusId) return;
+    const input = this.root.querySelector("#" + focusId);
     if (!input) return;
     input.focus();
     const n = input.value.length;
